@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A reference board for Basics of Faith Season 3 — frames from Are.na on an open canvas, with notes anyone can add.">
+<meta name="theme-color" content="#efeeec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0c0c" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Basics of Faith S3">
+<meta property="og:description" content="Reference board. Pan, zoom, and leave a note anywhere.">
+<meta property="og:type" content="website">
+<title>Basics of Faith S3</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300..800;1,300..600&display=swap">
+<style>
+/* ── tokens ──────────────────────────────────────────────────────────
+   Black and white only. Light is the base set; dark redefines the same
+   values twice — once for the unstamped (system) state, once for an
+   explicit toggle. No hue anywhere: the photographs carry all the color. */
+:root {
+  --ground:     #efeeec;
+  --ground-2:   #e4e2df;
+  --paper:      #ffffff;
+  --edge:       #d8d6d2;
+  --ink:        #000000;
+  --muted:      #6f6f6f;
+  --hair:       rgba(0, 0, 0, .14);
+  --shadow:     0 1px 2px rgba(0,0,0,.14), 0 18px 44px rgba(0,0,0,.18);
+  --shadow-lo:  0 1px 2px rgba(0,0,0,.10), 0 6px 16px rgba(0,0,0,.10);
+  --glass:      rgba(255,255,255,.88);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:     #0c0c0c;
+    --ground-2:   #050505;
+    --paper:      #171717;
+    --edge:       #2a2a2a;
+    --ink:        #ffffff;
+    --muted:      #8f8f8f;
+    --hair:       rgba(255, 255, 255, .16);
+    --shadow:     0 1px 2px rgba(0,0,0,.6), 0 18px 44px rgba(0,0,0,.62);
+    --shadow-lo:  0 1px 2px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.45);
+    --glass:      rgba(23,23,23,.88);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:     #0c0c0c;
+  --ground-2:   #050505;
+  --paper:      #171717;
+  --edge:       #2a2a2a;
+  --ink:        #ffffff;
+  --muted:      #8f8f8f;
+  --hair:       rgba(255, 255, 255, .16);
+  --shadow:     0 1px 2px rgba(0,0,0,.6), 0 18px 44px rgba(0,0,0,.62);
+  --shadow-lo:  0 1px 2px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.45);
+  --glass:      rgba(23,23,23,.88);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Libre Franklin", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: .8rem;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+  background: radial-gradient(130% 95% at 50% 44%, var(--ground) 0%, var(--ground-2) 80%);
+}
+#stage.grabbing { cursor: grabbing; }
+
+#world {
+  position: absolute;
+  left: 0; top: 0;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+#frames { transition: opacity .55s ease; }
+
+.obj {
+  position: absolute;
+  left: 0; top: 0;
+  transform-origin: 50% 50%;
+}
+
+/* ── frames ────────────────────────────────────────────────────────── */
+/* Bare images. No mat, no caption, no index — the shadow and the slight
+   rotation are the only things saying "a photograph lying on a table". */
+.photo {
+  margin: 0;
+  box-shadow: var(--shadow);
+  transition: transform 1.15s cubic-bezier(.22,.9,.24,1), opacity .5s ease;
+  cursor: zoom-in;
+  user-select: none;
+}
+.photo img {
+  display: block;
+  width: 100%;
+  background: var(--edge);
+}
+
+/* ── title ─────────────────────────────────────────────────────────── */
+/* A line of type sitting on the canvas, not a card. The camera zooms
+   until it fills the screen, then pulls back — that is the whole move. */
+#titlecard {
+  z-index: 100;
+  width: 1500px;
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity .7s ease;
+}
+#titlecard.on { opacity: 1; }
+#titlecard h1 {
+  margin: 0;
+  font-weight: 800;
+  font-size: 175px;
+  line-height: .86;
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+/* ── notes ─────────────────────────────────────────────────────────── */
+/* Just text on paper. Drag from anywhere, click to type, and the only
+   control — delete — stays hidden until the card is hovered or focused. */
+.note {
+  width: 440px;
+  background: var(--paper);
+  box-shadow: var(--shadow-lo);
+  transition: transform .4s cubic-bezier(.22,.9,.24,1), box-shadow .2s ease;
+  cursor: grab;
+}
+.note.dragging { transition: none; box-shadow: var(--shadow); z-index: 40; cursor: grabbing; }
+.note textarea {
+  display: block;
+  width: 100%;
+  border: 0; outline: 0; resize: none;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 23px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 26px 28px;
+  min-height: 112px;
+  overflow: hidden;
+  cursor: text;
+}
+.note textarea::placeholder { color: var(--muted); }
+.note .kill {
+  position: absolute;
+  top: 6px; right: 6px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--muted);
+  font: 400 20px/1 inherit;
+  padding: 6px 8px;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.note:hover .kill, .note:focus-within .kill { opacity: 1; }
+.note .kill:hover { color: var(--ink); }
+.note:focus-within { box-shadow: var(--shadow), 0 0 0 1px var(--ink); }
+
+/* ── chrome ────────────────────────────────────────────────────────── */
+.hud {
+  position: fixed;
+  z-index: 60;
+  font-size: .68rem;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+#dock {
+  bottom: 16px; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--hair);
+  max-width: calc(100vw - 20px);
+}
+#dock button {
+  font: inherit;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 11px 15px;
+  cursor: pointer;
+}
+#dock button:hover { background: var(--hair); }
+#dock button:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+#dock .primary { background: var(--ink); color: var(--ground); }
+#dock .primary:hover { background: var(--ink); opacity: .82; }
+#dock .sep { width: 1px; background: var(--hair); margin: 5px 4px; }
+
+#skip {
+  top: 16px; right: 16px;
+  font: inherit;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--glass);
+  border: 1px solid var(--hair);
+  padding: 9px 13px;
+  cursor: pointer;
+}
+#skip:hover { color: var(--ink); }
+
+#dock { transition: opacity .6s ease; }
+body.intro #dock { opacity: 0; pointer-events: none; }
+body:not(.intro) #skip { display: none; }
+
+@media (max-width: 640px) {
+  #dock button { padding: 12px 11px; font-size: .62rem; letter-spacing: .12em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo, .note, #dock { transition-duration: .01ms; }
+}
+
+/* One line, only on a static host, so nobody assumes their note reached
+   the rest of the team. It never renders once the board is shared. */
+#local {
+  right: 16px; bottom: 16px;
+  margin: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+@media (max-width: 640px) { #local { display: none; } }
+
+/* ── boot ──────────────────────────────────────────────────────────── */
+/* The channel is fetched live, so the board has a brief moment with
+   nothing in it. One quiet line, centred, replaced by the frames. */
+#boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 70;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 500;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="world">
+    <div id="frames"></div>
+    <div id="titlecard" class="obj"><h1>Basics of Faith</h1></div>
+  </div>
+</div>
+
+<nav id="dock" class="hud">
+  <button class="primary" id="add">+ Note</button>
+  <div class="sep"></div>
+  <button id="zout">–</button>
+  <button id="zin">+</button>
+  <button id="fit">Fit</button>
+  <div class="sep"></div>
+  <button id="replay">Replay</button>
+</nav>
+
+<button id="skip" class="hud">Skip</button>
+
+<div id="boot">Loading the channel</div>
+
+<p id="local" class="hud" hidden>Notes save on this device only</p>
+
+<script src="app.js"></script>
+</body>
+</html>

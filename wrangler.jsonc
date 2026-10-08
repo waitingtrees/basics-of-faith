@@ -1,0 +1,8 @@
+{
+  "name": "basics-of-faith",
+  "compatibility_date": "2026-09-01",
+  "pages_build_output_dir": "docs",
+  "kv_namespaces": [
+    { "binding": "NOTES", "id": "REPLACE_WITH_KV_ID" }
+  ]
+}
