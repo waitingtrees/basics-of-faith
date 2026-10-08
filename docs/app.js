@@ -4,6 +4,7 @@
 // Both endpoints are this site's own Pages Functions: /api/arena proxies
 // and caches the Are.na channel, /api/notes keeps the shared board.
 const ARENA = "/api/arena";
+const CHANNEL = "basics-of-faith-s3";
 const NOTES = "/api/notes";
 const POLL_MS = 3000;
 
@@ -238,6 +239,32 @@ function measure(blocks) {
     probe.onerror = () => resolve(null);
     probe.src = b.thumb;
   }))).then((all) => all.filter(Boolean));
+}
+
+/** The channel, from this site's cached proxy where there is one and
+ *  straight from Are.na where there isn't — their API is CORS-open, so a
+ *  static host can ask for itself. */
+async function loadBlocks() {
+  try {
+    const res = await fetch(ARENA);
+    if (res.ok) {
+      const blocks = await res.json();
+      if (Array.isArray(blocks) && blocks.length) return blocks;
+    }
+  } catch (e) {
+    /* no proxy here — fall through */
+  }
+
+  const res = await fetch(`https://api.are.na/v2/channels/${CHANNEL}?per=100`);
+  const channel = await res.json();
+
+  return (channel.contents || [])
+    .filter((b) => b.class === "Image" && b.image && b.image.display && b.image.thumb)
+    .map((b) => ({
+      id: String(b.id),
+      src: b.image.display.url,
+      thumb: b.image.thumb.url
+    }));
 }
 
 // ── notes ──────────────────────────────────────────────────────────────
@@ -632,8 +659,7 @@ async function probeBoard() {
 async function boot() {
   const msg = document.getElementById("boot");
   try {
-    const blocks = await (await fetch(ARENA)).json();
-    FRAMES = await measure(blocks);
+    FRAMES = await measure(await loadBlocks());
   } catch (e) {
     FRAMES = [];
   }
